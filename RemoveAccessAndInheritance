@@ -1,0 +1,31 @@
+$dirToRemoveAccess = Read-Host "Insert path or paths of directories to delete (separated by comas)"
+if ($dirToRemoveAccess.Contains(','))
+{
+    $dirToRemoveAccessTable = $dirToRemoveAccess -split ','
+}
+else
+{
+    $dirToRemoveAccessTable = $dirToRemoveAccess
+}
+$groupsToRemoveAccess = Read-Host "Insert group or groups to delete (separated by comas)"
+if ($groupsToRemoveAccess.Contains(','))
+{
+    $groupsToRemoveAccessTable = $groupsToRemoveAccess -split ','
+}
+else
+{
+    $groupsToRemoveAccessTable = $groupsToRemoveAccess
+}
+foreach ($dir in $dirToRemoveAccessTable)
+{
+    if (Test-Path -Path $dir -PathType Container)
+    {
+        foreach ($group in $groupsToRemoveAccessTable)
+        {
+            icacls $dir /inheritance:d
+            $acl = Get-Acl -Path $dir
+            $acl.Access | Where-Object { $_.IdentityReference.Value -eq $Group } | ForEach-Object {$acl.RemoveAccessRule($_)}
+            Set-Acl -Path $dir -AclObject $acl
+        }
+    }
+}
