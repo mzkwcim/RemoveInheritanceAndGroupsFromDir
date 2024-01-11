@@ -1,13 +1,6 @@
-$dirToRemoveAccess = Read-Host "Insert path or paths of directories to delete (separated by comas)"
-if ($dirToRemoveAccess.Contains(','))
-{
-    $dirToRemoveAccessTable = $dirToRemoveAccess -split ','
-}
-else
-{
-    $dirToRemoveAccessTable = $dirToRemoveAccess
-}
-$groupsToRemoveAccess = Read-Host "Insert group or groups to delete (separated by comas)"
+$dirToRemoveAccess = Read-Host "Insert directory name"
+$dirtable = Get-ChildItem $dirToRemoveAccess
+$groupsToRemoveAccess = Read-Host "insert group name"
 if ($groupsToRemoveAccess.Contains(','))
 {
     $groupsToRemoveAccessTable = $groupsToRemoveAccess -split ','
@@ -16,16 +9,16 @@ else
 {
     $groupsToRemoveAccessTable = $groupsToRemoveAccess
 }
-foreach ($dir in $dirToRemoveAccessTable)
+foreach($name in (Get-ChildItem $dirToRemoveAccess).FullName) 
 {
-    if (Test-Path -Path $dir -PathType Container)
-    {
-        foreach ($group in $groupsToRemoveAccessTable)
+    if (Test-Path -Path $name -PathType Container)
         {
-            icacls $dir /inheritance:d
-            $acl = Get-Acl -Path $dir
-            $acl.Access | Where-Object { $_.IdentityReference.Value -eq $Group } | ForEach-Object {$acl.RemoveAccessRule($_)}
-            Set-Acl -Path $dir -AclObject $acl
+            foreach ($group in $groupsToRemoveAccessTable)
+            {
+                icacls $name /inheritance:d 
+                $acl = Get-Acl $name
+                $acl.Access | Where-Object { $_.IdentityReference.Value -eq $Group } | ForEach-Object {$acl.RemoveAccessRule($_)}
+                Set-Acl -Path $name -AclObject $acl
+            }
         }
-    }
 }
