@@ -1,12 +1,27 @@
 $dirToRemoveAccess = Read-Host "Wprowadź ścieżkę"
-$dirtable = Get-ChildItem $dirToRemoveAccess
-$groupsToRemoveAccess = Read-Host "Wprowadź nazwę grupy (jeżeli wprowadzasz wiele grup oddziel je przecinkami)"
-if ($dirToRemoveAccess -match '\\\\([^\\]+)\\') {
-    $value = $matches[1] + "\"
-}
-else 
+$subDirectories = (Get-ChildItem -Path $dirToRemoveAccess).FullName
+$groupList = @()
+foreach ($subDirectory in $subDirectories)
 {
-    $value = "example\"
+    $acl = Get-acl -Path $subDirectory
+    $groups = $acl.Access | Where-Object { $_.IdentityReference -is [System.Security.Principal.NTAccount] } | Select-Object -ExpandProperty IdentityReference
+    $groupList += $groups
+}
+$groupList += (Get-Acl $dirToRemoveAccess).access | Select-Object -ExpandProperty IdentityReference | Where-Object { $_.Value -like "*S-*"} | Select-Object -ExpandProperty Value
+$uniqueGroups = $groupList | ForEach-Object { $_.ToString().ToLower() } | Select-Object -Unique
+foreach($group in $uniqueGroups )
+{
+    Write-Host $group
+}
+$groupsToRemoveAccess = Read-Host "Wprowadź nazwę grupy lub SID (jeżeli wprowadzasz wiele grup oddziel je pojedynczymi spacjami)"
+$validInput = $false
+while (-not $validInput) {
+    $inheritance = Read-Host "Czy chcesz wyłączyć dziedziczenie dziedziczenie (tak/nie)"
+    if ($inheritance -eq "tak" -or $inheritance -eq "nie") {
+        $validInput = $true
+    } else {
+        Write-Host "Wprowadź poprawną wartość (tak/nie)."
+    }
 }
 if ($groupsToRemoveAccess.Contains(' '))
 {
@@ -22,12 +37,15 @@ foreach($name in (Get-ChildItem $dirToRemoveAccess).FullName)
     {
         foreach ($group in $groupsToRemoveAccessTable)
         {
-            $groupWithPrefix = $value + $group
-            $groupWithPrefix
-            icacls $name /inheritance:d 
+            if ($inheritance -eq "tak")
+            {
+                icacls $name /inheritance:d
+            }
             $acl = Get-Acl $name
-            $acl.Access | Where-Object { $_.IdentityReference.Value -eq $groupWithPrefix } | ForEach-Object {$acl.RemoveAccessRule($_)}
+            $acl.Access | Where-Object { $_.IdentityReference.Value -eq $group -or $_.IdentityReference.Value -eq $group.ToString().ToLower()} | ForEach-Object {$acl.RemoveAccessRule($_)}
             Set-Acl -Path $name -AclObject $acl
         }
     }
 }
+Start-Sleep -Seconds 15
+
